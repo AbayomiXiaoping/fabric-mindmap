@@ -44,6 +44,10 @@ from lakehouse_intelligence.models import (
     FlagStatus,
     RejectionRecord,
     SyncState,
+    PendingSync,
+    PendingSyncStatus,
+    SyncOperation,
+    SyncStatus,
 )
 
 
@@ -177,6 +181,18 @@ CREATE TABLE IF NOT EXISTS kg_sync_state (
     last_sync_at TEXT,
     updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS kg_pending_sync (
+    sync_id TEXT PRIMARY KEY,
+    lakehouse_id TEXT NOT NULL,
+    graph_version INTEGER NOT NULL,
+    operation TEXT NOT NULL,
+    payload_ref TEXT NOT NULL,
+    status TEXT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_pending_sync_lh ON kg_pending_sync(lakehouse_id, status);
 
 -- AI Intelligence Tables
 CREATE TABLE IF NOT EXISTS kg_ai_insights (
@@ -438,11 +454,17 @@ class SQLiteStore:
             return None
         return Node(**dict(row))
 
-    async def get_nodes_by_type(self, node_type: NodeType, lakehouse_id: str) -> list[Node]:
-        cursor = await self.db.execute(
-            "SELECT * FROM kg_nodes WHERE node_type = ? AND lakehouse_id = ?",
-            (node_type.value, lakehouse_id),
-        )
+    async def get_nodes_by_type(self, node_type: Optional[NodeType], lakehouse_id: str) -> list[Node]:
+        if node_type is None:
+            cursor = await self.db.execute(
+                "SELECT * FROM kg_nodes WHERE lakehouse_id = ?",
+                (lakehouse_id,),
+            )
+        else:
+            cursor = await self.db.execute(
+                "SELECT * FROM kg_nodes WHERE node_type = ? AND lakehouse_id = ?",
+                (node_type.value if hasattr(node_type, "value") else str(node_type), lakehouse_id),
+            )
         rows = await cursor.fetchall()
         return [Node(**dict(r)) for r in rows]
 
@@ -1198,3 +1220,98 @@ class SQLiteStore:
             "table_count": table_count,
             "column_count": column_count,
         }
+
+    # --- Sync State and Pending Syncs (Epic 9) ---
+
+    async def save_sync_state(self, state: SyncState) -> None:
+        query = """
+        INSERT INTO kg_sync_state (
+            lakehouse_id, local_version, fabric_version, sync_status, last_sync_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(lakehouse_id) DO UPDATE SET
+            local_version=excluded.local_version,
+            fabric_version=excluded.fabric_version,
+            sync_status=excluded.sync_status,
+            last_sync_at=excluded.last_sync_at,
+            updated_at=excluded.updated_at
+        """
+        await self.db.execute(
+            query,
+            (
+                state.lakehouse_id,
+                state.local_version,
+                state.fabric_version,
+                state.sync_status.value if hasattr(state.sync_status, "value") else str(state.sync_status),
+                state.last_sync_at,
+                state.updated_at,
+            ),
+        )
+        await self.db.commit()
+
+    async def get_sync_state(self, lakehouse_id: str) -> Optional[SyncState]:
+        cursor = await self.db.execute("SELECT * FROM kg_sync_state WHERE lakehouse_id = ?", (lakehouse_id,))
+        row = await cursor.fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        return SyncState(**d)
+
+    async def save_pending_sync(self, item: PendingSync) -> None:
+        query = """
+        INSERT INTO kg_pending_sync (
+            sync_id, lakehouse_id, graph_version, operation, payload_ref, status, attempts, last_error
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(sync_id) DO UPDATE SET
+            status=excluded.status,
+            attempts=excluded.attempts,
+            last_error=excluded.last_error
+        """
+        await self.db.execute(
+            query,
+            (
+                item.sync_id,
+                item.lakehouse_id,
+                item.graph_version,
+                item.operation.value if hasattr(item.operation, "value") else str(item.operation),
+                item.payload_ref,
+                item.status.value if hasattr(item.status, "value") else str(item.status),
+                item.attempts,
+                item.last_error,
+            ),
+        )
+        await self.db.commit()
+
+    async def get_pending_syncs(
+        self, lakehouse_id: str, status: Optional[PendingSyncStatus] = None
+    ) -> list[PendingSync]:
+        if status:
+            cursor = await self.db.execute(
+                "SELECT * FROM kg_pending_sync WHERE lakehouse_id = ? AND status = ? ORDER BY graph_version ASC",
+                (lakehouse_id, status.value if hasattr(status, "value") else str(status)),
+            )
+        else:
+            cursor = await self.db.execute(
+                "SELECT * FROM kg_pending_sync WHERE lakehouse_id = ? ORDER BY graph_version ASC",
+                (lakehouse_id,),
+            )
+        rows = await cursor.fetchall()
+        return [PendingSync(**dict(r)) for r in rows]
+
+    async def update_pending_sync(
+        self, sync_id: str, status: PendingSyncStatus, attempts: int, last_error: Optional[str] = None
+    ) -> None:
+        query = """
+        UPDATE kg_pending_sync
+        SET status = ?, attempts = ?, last_error = ?
+        WHERE sync_id = ?
+        """
+        await self.db.execute(
+            query,
+            (
+                status.value if hasattr(status, "value") else str(status),
+                attempts,
+                last_error,
+                sync_id,
+            ),
+        )
+        await self.db.commit()

@@ -139,3 +139,55 @@ async def test_mcp_governance_tool_workflow(graph_engine, sample_lakehouse_id, m
     appr_resp = await server.handle_request(appr_req)
     appr_content = json.loads(appr_resp["result"]["content"][0]["text"])
     assert appr_content["status"] == "APPROVED"
+
+
+@pytest.mark.asyncio
+async def test_mcp_sync_tools(graph_engine, sample_lakehouse_id, mock_connector, tmp_path):
+    await graph_engine.build_initial_graph(
+        lakehouse_id=sample_lakehouse_id,
+        lakehouse_name="Banking_LH",
+        connector=mock_connector,
+    )
+
+    from lakehouse_intelligence.storage.delta_store import DeltaStore, DeltaMetadataConfig
+
+    delta_dir = tmp_path / "mcp_delta_test"
+    delta_store = DeltaStore(
+        sqlite_store=graph_engine.store,
+        config=DeltaMetadataConfig(base_storage_path=str(delta_dir), enabled=True),
+    )
+    server = MCPServer(
+        graph_engine.store,
+        graph_engine=graph_engine,
+        delta_store=delta_store,
+    )
+
+    # 1. get_sync_status
+    status_req = {
+        "jsonrpc": "2.0",
+        "id": 10,
+        "method": "tools/call",
+        "params": {
+            "name": "get_sync_status",
+            "arguments": {"lakehouse_id": sample_lakehouse_id},
+        },
+    }
+    status_resp = await server.handle_request(status_req)
+    status_data = json.loads(status_resp["result"]["content"][0]["text"])
+    assert "sync_status" in status_data
+
+    # 2. sync_lakehouse_graph
+    sync_req = {
+        "jsonrpc": "2.0",
+        "id": 11,
+        "method": "tools/call",
+        "params": {
+            "name": "sync_lakehouse_graph",
+            "arguments": {"lakehouse_id": sample_lakehouse_id},
+        },
+    }
+    sync_resp = await server.handle_request(sync_req)
+    sync_data = json.loads(sync_resp["result"]["content"][0]["text"])
+    assert sync_data["sync_status"] == "IN_SYNC"
+    assert sync_data["fabric_version"] == 1
+

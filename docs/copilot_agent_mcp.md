@@ -100,6 +100,8 @@ In `~/Library/Application Support/Claude/claude_desktop_config.json`:
 | | `reject_domain` | Rejects proposal and prevents re-proposing |
 | | `get_change_flags` | Returns proposal drift or invalidation flags |
 | | `get_governance_history`| Retrieves immutable audit decisions |
+| **Sync** | `get_sync_status` | Returns local vs Fabric Delta sync state |
+| | `sync_lakehouse_graph`| Synchronizes graph snapshot to Fabric Delta tables |
 
 ---
 
@@ -111,3 +113,5 @@ In `~/Library/Application Support/Claude/claude_desktop_config.json`:
 - *"Are there any pending business domain proposals awaiting my review in the governance queue?"*
 - *"Approve the domain suggestion for the `customers` table."*
 - *"Refresh the Lakehouse metadata and show me what changed since the last version."*
+- *"Check the synchronization status between local cache and Fabric Delta storage."*
+- *"Sync our validated knowledge graph and governance decisions to the Fabric metadata Lakehouse."*

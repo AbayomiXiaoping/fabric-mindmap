@@ -17,6 +17,7 @@ from lakehouse_intelligence.logging.logger import get_logger
 from lakehouse_intelligence.mcp.tools import TOOL_DEFINITIONS
 from lakehouse_intelligence.models import NodeType, ReviewStatus, SuggestionStatus
 from lakehouse_intelligence.storage.sqlite_store import SQLiteStore
+from lakehouse_intelligence.storage.delta_store import DeltaStore, DeltaMetadataConfig
 
 logger = get_logger("mcp_server")
 
@@ -30,11 +31,13 @@ class MCPServer:
         graph_engine: Optional[GraphEngine] = None,
         gov_engine: Optional[GovernanceEngine] = None,
         ai_engine: Optional[AIEnrichmentEngine] = None,
+        delta_store: Optional[DeltaStore] = None,
     ):
         self.store = store
         self.graph_engine = graph_engine or GraphEngine(store)
         self.gov_engine = gov_engine or GovernanceEngine(store)
         self.ai_engine = ai_engine or AIEnrichmentEngine(store)
+        self.delta_store = delta_store or DeltaStore(store)
         self.traversal = GraphTraversal(store)
 
     async def handle_request(self, req: dict[str, Any]) -> dict[str, Any]:
@@ -286,6 +289,15 @@ class MCPServer:
         elif name == "get_governance_history":
             decisions = await self.store.get_user_decisions(lakehouse_id)
             return [d.model_dump() for d in decisions]
+
+        elif name == "get_sync_status":
+            state = await self.delta_store.get_sync_status(lakehouse_id)
+            return state.model_dump()
+
+        elif name == "sync_lakehouse_graph":
+            force = args.get("force", False)
+            state = await self.delta_store.push_snapshot(lakehouse_id, force=force)
+            return state.model_dump()
 
         raise ValueError(f"Unknown tool name '{name}'")
 

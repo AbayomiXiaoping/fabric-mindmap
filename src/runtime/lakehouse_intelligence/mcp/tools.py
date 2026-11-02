@@ -268,4 +268,27 @@ TOOL_DEFINITIONS = [
             "required": ["lakehouse_id"],
         },
     },
+    {
+        "name": "get_sync_status",
+        "description": "Retrieves the synchronization status between local SQLite graph cache and Fabric Delta storage.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "lakehouse_id": {"type": "string", "description": "The target Lakehouse ID"}
+            },
+            "required": ["lakehouse_id"],
+        },
+    },
+    {
+        "name": "sync_lakehouse_graph",
+        "description": "Synchronizes the published knowledge graph snapshot and governance audit to the destination metadata Lakehouse Delta tables.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "lakehouse_id": {"type": "string", "description": "The target Lakehouse ID"},
+                "force": {"type": "boolean", "description": "Force overwrite remote version if conflicting"}
+            },
+            "required": ["lakehouse_id"],
+        },
+    },
 ]

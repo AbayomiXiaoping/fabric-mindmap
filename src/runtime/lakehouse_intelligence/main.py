@@ -21,6 +21,7 @@ from lakehouse_intelligence.graph.engine import GraphEngine
 from lakehouse_intelligence.logging.logger import get_logger
 from lakehouse_intelligence.mcp.server import MCPServer
 from lakehouse_intelligence.storage.sqlite_store import SQLiteStore
+from lakehouse_intelligence.storage.delta_store import DeltaStore, DeltaMetadataConfig
 
 logger = get_logger("runtime_main")
 
@@ -30,6 +31,7 @@ class AppState:
     engine: Optional[GraphEngine] = None
     gov_engine: Optional[GovernanceEngine] = None
     ai_engine: Optional[AIEnrichmentEngine] = None
+    delta_store: Optional[DeltaStore] = None
     mcp_server: Optional[MCPServer] = None
 
 
@@ -38,7 +40,7 @@ app_state = AppState()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifecycle manager initializing SQLite store, graph, governance, AI, and MCP services on startup."""
+    """Lifecycle manager initializing SQLite store, graph, governance, AI, Delta store, and MCP services on startup."""
     logger.info(f"Starting Fabric Lakehouse Intelligence Runtime v{__version__} on {settings.runtime_host}:{settings.runtime_port}")
     store = SQLiteStore(settings.sqlite_path)
     await store.initialize()
@@ -46,13 +48,18 @@ async def lifespan(app: FastAPI):
     app_state.engine = GraphEngine(store)
     app_state.gov_engine = GovernanceEngine(store)
     app_state.ai_engine = AIEnrichmentEngine(store)
+    app_state.delta_store = DeltaStore(
+        sqlite_store=store,
+        config=DeltaMetadataConfig(enabled=True),
+    )
     app_state.mcp_server = MCPServer(
         store=store,
         graph_engine=app_state.engine,
         gov_engine=app_state.gov_engine,
         ai_engine=app_state.ai_engine,
+        delta_store=app_state.delta_store,
     )
-    logger.info("Storage layer, graph engine, governance, AI, and MCP services initialized")
+    logger.info("Storage layer, graph engine, governance, AI, Delta store, and MCP services initialized")
     yield
     logger.info("Shutting down runtime...")
     if app_state.store:
