@@ -110,3 +110,4 @@ class HeuristicAIProvider(BaseAIProvider):
                 f"Default classification based on metadata in schema '{table.schema_name or 'dbo'}'.",
                 0.70,
             )
+

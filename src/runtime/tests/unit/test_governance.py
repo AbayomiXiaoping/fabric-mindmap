@@ -122,3 +122,4 @@ async def test_governance_modify_domain_workflow(
 
     domain = await graph_engine.store.get_business_domain(res["domain_id"])
     assert domain.domain_name == "Custom Financial Treasury"
+

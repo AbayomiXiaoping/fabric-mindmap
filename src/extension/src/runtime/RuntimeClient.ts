@@ -5,6 +5,29 @@ export interface HealthStatus {
   version: string;
 }
 
+export interface AuthStatus {
+  is_authenticated: boolean;
+  auth_method: string;
+  tenant_id?: string;
+  account_name?: string;
+  token_expiry?: string;
+  error?: string;
+}
+
+export interface FabricWorkspace {
+  workspace_id: string;
+  name: string;
+  type?: string;
+  description?: string;
+}
+
+export interface FabricLakehouseItem {
+  lakehouse_id: string;
+  name: string;
+  workspace_id: string;
+  description?: string;
+}
+
 export interface TableSummary {
   table_id: string;
   name: string;
@@ -120,6 +143,34 @@ export class RuntimeClient {
   async getHealth(): Promise<HealthStatus> {
     return this.request<HealthStatus>('/health');
   }
+
+  // --- Authentication & Fabric Live Discovery ---
+
+  async getAuthStatus(): Promise<AuthStatus> {
+    return this.request<AuthStatus>('/api/v1/auth/status');
+  }
+
+  async configureAuth(config: {
+    method: string;
+    tenant_id?: string;
+    client_id?: string;
+    client_secret?: string;
+  }): Promise<AuthStatus> {
+    return this.request<AuthStatus>('/api/v1/auth/configure', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    });
+  }
+
+  async listWorkspaces(): Promise<FabricWorkspace[]> {
+    return this.request<FabricWorkspace[]>('/api/v1/fabric/workspaces');
+  }
+
+  async listLakehousesInWorkspace(workspaceId: string): Promise<FabricLakehouseItem[]> {
+    return this.request<FabricLakehouseItem[]>(`/api/v1/fabric/workspaces/${workspaceId}/lakehouses`);
+  }
+
+  // --- Graph & Metadata ---
 
   async listTables(lakehouseId: string): Promise<TableSummary[]> {
     return this.request<TableSummary[]>(`/api/v1/lakehouses/${lakehouseId}/tables`);

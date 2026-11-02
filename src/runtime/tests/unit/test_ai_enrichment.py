@@ -42,3 +42,4 @@ async def test_ai_enrichment_generates_descriptions_and_proposals(
     assert len(queue) > 0
     for q in queue:
         assert q.status == ReviewStatus.PENDING
+

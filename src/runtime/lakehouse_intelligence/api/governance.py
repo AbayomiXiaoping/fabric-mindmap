@@ -154,3 +154,4 @@ async def get_change_flags(
     """Returns metadata drift and proposal change flags."""
     flags = await store.get_change_flags(lakehouse_id)
     return [f.model_dump() for f in flags]
+

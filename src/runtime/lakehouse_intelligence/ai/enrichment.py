@@ -159,3 +159,4 @@ class AIEnrichmentEngine:
 
         logger.info(f"AI enrichment complete: {stats}")
         return stats
+
