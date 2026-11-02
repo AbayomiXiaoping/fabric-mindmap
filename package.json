@@ -1,0 +1,17 @@
+{
+  "name": "fabric-mindmap-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fabric Lakehouse Intelligence Explorer monorepo",
+  "scripts": {
+    "setup": "bash scripts/setup.sh",
+    "setup:extension": "cd src/extension && npm install && npm run build",
+    "setup:webview": "cd src/webview-ui && npm install && npm run build",
+    "setup:runtime": "cd src/runtime && python3 -m venv .venv && source .venv/bin/activate && pip install -e \".[dev]\"",
+    "build": "npm run build:extension && npm run build:webview",
+    "build:extension": "cd src/extension && npm run build",
+    "build:webview": "cd src/webview-ui && npm run build",
+    "test:runtime": "cd src/runtime && .venv/bin/pytest -v",
+    "test": "npm run test:runtime"
+  }
+}

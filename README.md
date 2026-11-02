@@ -4,7 +4,7 @@ A developer-focused Visual Studio Code extension and local runtime that connects
 
 ---
 
-## Architecture & Core Invariants
+## 🏛️ Architecture & Core Invariants
 
 1. **Zero Business-Row Scanning**:
    Only technical metadata (table names, column types, primary/foreign keys, Delta commit logs) is extracted. No customer or transaction row data is read, transferred, or cached.
@@ -22,21 +22,24 @@ A developer-focused Visual Studio Code extension and local runtime that connects
 
 ---
 
-## Monorepo Layout
+## 📁 Monorepo Layout
 
 ```
 fabric_mindmap/
 ├── .vscode/
 │   ├── launch.json              # F5 Extension Development Host launch
-│   ├── tasks.json               # Build tasks
-│   └── mcp.json                 # Copilot Agent local MCP registration
+│   ├── tasks.json               # Automated build tasks
+│   └── mcp.json                 # GitHub Copilot Agent MCP server registration
 ├── docs/
-│   └── copilot_agent_mcp.md     # Copilot Agent tool reference & sample prompts
-├── fabric_lakehouse_intelligence_v1/ # Architecture & spec specifications
+│   └── copilot_agent_mcp.md     # Copilot Agent tool schemas & sample prompts
+├── fabric_lakehouse_intelligence_v1/ # Architecture specifications & PRD
 │   ├── 01_PRD.md
 │   ├── 02_SOLUTION_ARCHITECTURE.md
 │   ├── 03_DATA_MODEL.md
 │   └── 04_IMPLEMENTATION_BACKLOG.md
+├── scripts/
+│   └── setup.sh                 # One-command automated setup script
+├── package.json                 # Root monorepo build & test scripts
 └── src/
     ├── extension/               # VS Code Extension (TypeScript)
     │   ├── src/                 # Extension host, TreeViews, Webview manager, RuntimeClient
@@ -62,52 +65,147 @@ fabric_mindmap/
 
 ---
 
-## Quick Start
+## ⚙️ Setup Process
 
 ### 1. Prerequisites
 
-- **Node.js**: ≥ 18.0.0
-- **Python**: ≥ 3.9
-- **VS Code**: ≥ 1.85.0
+Before installing, ensure the following prerequisites are installed on your machine:
 
-### 2. Setup
-
-```bash
-# 1. Install extension dependencies & compile
-cd src/extension
-npm install
-npm run build
-
-# 2. Install webview dependencies & build
-cd ../webview-ui
-npm install
-npm run build
-
-# 3. Setup Python virtual environment & runtime
-cd ../runtime
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-```
-
-### 3. Launching in VS Code
-
-1. Open `/Users/shi/banking-ai-agent/fabric_mindmap` in VS Code.
-2. Press **`F5`** (or run `Extension Development Host` from the Run & Debug pane).
-3. The extension will automatically spawn the background Python runtime on `127.0.0.1:9720`.
-4. In the Lakehouse Intelligence sidebar, click **Connect to Lakehouse** and choose your preferred sign-in method:
-   - **Demo Sandbox (Mock)**: Full offline demo with sample retail banking schema (`customers`, `accounts`, `transactions`, `daily_balances`).
-   - **Interactive Browser**: Entra ID delegated browser sign-in.
-   - **Azure CLI**: Uses cached tokens from `az login`.
-   - **Service Principal**: Client secret credential.
+| Tool | Minimum Version | Installation / Verification |
+|---|---|---|
+| **Node.js** | `≥ 18.0.0` (LTS or newer) | `node -v` (Install via `brew install node` or [nodejs.org](https://nodejs.org/)) |
+| **npm** | `≥ 9.0.0` | `npm -v` |
+| **Python** | `≥ 3.9` (3.9, 3.10, 3.11, 3.12, 3.13) | `python3 --version` |
+| **VS Code** | `≥ 1.85.0` | `code -v` ([code.visualstudio.com](https://code.visualstudio.com/)) |
+| **Azure CLI** *(optional)* | `≥ 2.50.0` *(for live Fabric sign-in)* | `az --version` (`brew install azure-cli`) |
 
 ---
 
-## GitHub Copilot Agent Integration (MCP)
+### 2. Option A: One-Command Automated Setup (Recommended)
 
-This project includes a built-in Local MCP Server compliant with the Model Context Protocol (2024-11-05).
+From the project root directory, run the automated setup script:
 
-The `.vscode/mcp.json` file is pre-configured for GitHub Copilot Agent:
+```bash
+# Make sure the script is executable and run:
+bash scripts/setup.sh
+
+# Or via npm:
+npm run setup
+```
+
+The script automatically:
+1. Validates Node.js, npm, and Python versions.
+2. Installs dependencies and compiles the VS Code Extension (`src/extension/dist/extension.js`).
+3. Installs dependencies and bundles the React Webview UI (`src/webview-ui/dist/`).
+4. Creates a Python virtual environment at `src/runtime/.venv`, installs runtime dependencies in editable mode, and verifies the test suite.
+
+---
+
+### 3. Option B: Step-by-Step Manual Setup
+
+If you prefer installing and building each layer step-by-step:
+
+#### Step 2.1 — Compile the VS Code Extension
+```bash
+cd src/extension
+npm install
+npm run build
+cd ../..
+```
+*Output: Bundles `src/extension/src/extension.ts` into `src/extension/dist/extension.js` via `esbuild`.*
+
+#### Step 2.2 — Build the React Webview Frontend
+```bash
+cd src/webview-ui
+npm install
+npm run build
+cd ../..
+```
+*Output: Compiles TypeScript and builds React assets into `src/webview-ui/dist/` via `vite`.*
+
+#### Step 2.3 — Configure the Python Runtime Environment
+```bash
+cd src/runtime
+
+# 1. Create virtual environment
+python3 -m venv .venv
+
+# 2. Activate virtual environment
+# On macOS / Linux:
+source .venv/bin/activate
+# On Windows (PowerShell):
+# .venv\Scripts\Activate.ps1
+
+# 3. Upgrade pip and install package in editable dev mode
+pip install --upgrade pip
+pip install -e ".[dev]"
+
+cd ../..
+```
+
+---
+
+### 4. Optional: Environment Configuration (`.env`)
+
+You can create an optional `.env` file in `src/runtime/` or set environment variables:
+
+```bash
+# Runtime settings
+FABRIC_RUNTIME_HOST=127.0.0.1
+FABRIC_RUNTIME_PORT=9720
+FABRIC_SQLITE_PATH=/Users/shi/banking-ai-agent/fabric_mindmap/lakehouse_intelligence.db
+
+# Live Microsoft Fabric connection settings (Optional - can also be configured interactively)
+FABRIC_TENANT_ID=your-entra-tenant-id
+FABRIC_CLIENT_ID=your-app-registration-client-id
+FABRIC_CLIENT_SECRET=your-app-registration-secret
+
+# Fabric Delta metadata persistence destination (Optional)
+FABRIC_METADATA_WORKSPACE_ID=your-metadata-workspace-id
+FABRIC_METADATA_LAKEHOUSE_ID=your-metadata-lakehouse-id
+```
+
+---
+
+## 🚀 How to Run
+
+### Mode 1: Run Inside VS Code (Extension Development Host)
+
+1. Open the repository root `/Users/shi/banking-ai-agent/fabric_mindmap` in VS Code.
+2. Press **`F5`** (or go to the **Run and Debug** view and select **"Launch Extension"**).
+3. A new **Extension Development Host** VS Code window will open.
+4. The extension automatically launches the Python runtime process on `127.0.0.1:9720` and monitors its health.
+5. In the Activity Bar, click on the **Lakehouse Intelligence** icon.
+6. Click **Connect to Lakehouse** and choose your sign-in method:
+   - **Demo Sandbox (Mock)**: Explore immediately with no credentials using the built-in banking schema (`customers`, `accounts`, `transactions`, `daily_balances`).
+   - **Interactive Browser**: Authenticate via Microsoft Entra ID popup.
+   - **Azure CLI**: Uses your local `az login` active credentials.
+   - **Service Principal**: Client secret authentication for automated/service contexts.
+7. Click **Open Mindmap** or **Overview** to interactively view the knowledge graph, run **✨ Enrich with AI**, review proposals in the **Governance** tab, or push snapshots via **☁️ Sync to Delta**.
+
+---
+
+### Mode 2: Run Standalone Python Runtime (FastAPI + Swagger UI)
+
+You can run the runtime independently as a local REST service:
+
+```bash
+cd src/runtime
+source .venv/bin/activate
+
+# Launch FastAPI server on 127.0.0.1:9720
+python -m lakehouse_intelligence.main
+```
+
+Open your browser to:
+- **Swagger Interactive API Documentation**: [http://127.0.0.1:9720/docs](http://127.0.0.1:9720/docs)
+- **Health Check**: [http://127.0.0.1:9720/health](http://127.0.0.1:9720/health)
+
+---
+
+### Mode 3: Local MCP Server for GitHub Copilot Agent
+
+The repository is pre-configured with `.vscode/mcp.json` to expose 24 shared tools directly to GitHub Copilot Agent:
 
 ```json
 {
@@ -126,42 +224,101 @@ The `.vscode/mcp.json` file is pre-configured for GitHub Copilot Agent:
 }
 ```
 
-### Registered MCP Tools (24 tools)
+Open GitHub Copilot Chat in VS Code and interact directly:
+- *"What tables exist in our Fabric Lakehouse and what are their primary keys?"*
+- *"Explain the business purpose of the `transactions` table."*
+- *"Are there any pending business domain proposals awaiting my review in the governance queue?"*
+- *"Approve the domain suggestion for the `customers` table."*
+- *"Refresh the Lakehouse metadata and show me what changed since the last version."*
+- *"Check the synchronization status between local SQLite cache and Fabric Delta storage."*
 
-| Category | Available Tools |
-|---|---|
-| **Discovery** | `list_workspaces`, `list_lakehouses`, `get_lakehouse_metadata`, `list_tables`, `get_table_schema`, `get_table_metadata` |
-| **Graph** | `get_graph`, `get_related_tables`, `get_table_dependencies`, `compare_snapshots` |
-| **Refresh** | `build_graph`, `refresh_graph`, `get_scan_status` |
-| **Intelligence** | `explain_table`, `classify_business_domains`, `ask_lakehouse` |
-| **Governance** | `get_domain_suggestions`, `approve_domain`, `modify_domain`, `reject_domain`, `get_change_flags`, `get_governance_history` |
-| **Delta Sync** | `get_sync_status`, `sync_lakehouse_graph` |
+---
+
+## 🛠️ Registered MCP Tools Reference (24 Tools)
+
+| Category | Tool | Description |
+|---|---|---|
+| **Discovery** | `list_workspaces` | Lists accessible Microsoft Fabric workspaces |
+| | `list_lakehouses` | Lists Lakehouses within a workspace |
+| | `get_lakehouse_metadata` | Returns Lakehouse configuration & version |
+| | `list_tables` | Lists all tables, formats, and column counts |
+| | `get_table_schema` | Returns column definitions, normalized types, PK/FK |
+| | `get_table_metadata` | Returns format, location, and canonical fingerprint |
+| **Graph** | `get_graph` | Returns active snapshot summary and node/edge counts |
+| | `get_related_tables` | Traverses foreign key / semantic relationships |
+| | `get_table_dependencies` | Returns incoming and outgoing relationship edges |
+| | `compare_snapshots` | Compares two graph versions and returns diff |
+| **Refresh** | `build_graph` | Initiates Journey A: initial graph publication |
+| | `refresh_graph` | Initiates Journey B: incremental metadata refresh |
+| | `get_scan_status` | Returns progress and change events for a scan |
+| **Intelligence** | `explain_table` | Retrieves or generates AI business explanation |
+| | `classify_business_domains` | Runs AI domain classification across tables |
+| | `ask_lakehouse` | Evaluates natural-language questions grounded in the graph |
+| **Governance** | `get_domain_suggestions` | Lists pending AI domain proposals |
+| | `approve_domain` | Approves domain proposal into validated knowledge |
+| | `modify_domain` | Modifies domain name and approves |
+| | `reject_domain` | Rejects proposal and prevents re-proposing |
+| | `get_change_flags` | Returns proposal drift or invalidation flags |
+| | `get_governance_history` | Retrieves immutable audit decisions |
+| **Delta Sync** | `get_sync_status` | Returns local vs Fabric Delta sync state |
+| | `sync_lakehouse_graph` | Synchronizes graph snapshot to Fabric Delta tables |
 
 See [`docs/copilot_agent_mcp.md`](./docs/copilot_agent_mcp.md) for full tool schemas and sample prompt walkthroughs.
 
 ---
 
-## Running the Automated Test Suite
+## 🧪 Running the Automated Test Suite
+
+To run all unit and end-to-end integration tests:
 
 ```bash
 cd src/runtime
 source .venv/bin/activate
 
-# Run all unit and integration tests with coverage
+# Run all 31 tests with coverage
 pytest -v --cov=lakehouse_intelligence
 ```
 
-All **31 unit and integration tests** execute in under 1 second:
-- Deterministic canonical SHA-256 fingerprinting & key sorting
-- Journey A (Initial Build) and Journey B (Incremental Refresh with change manifests)
-- AI proposal generation, proposal drift detection, and rejection memory
-- Human governance approval, modification, rejection, and audit trails
-- Local MCP tool dispatching (discovery, graph QA, governance, Delta sync)
-- Delta Lake table persistence, conflict detection, and retry queues
-- End-to-end FastAPI endpoint workflows across Auth, Discovery, Graph, Governance, Sync, and MCP
+### Test Coverage Highlights
+All **31 unit and integration tests** pass in ~1 second:
+- **Canonical Fingerprints** (`test_fingerprint.py`): SHA-256 canonical hashing, deterministic key sorting, type normalization.
+- **Graph Builder & Refresh** (`test_graph_builder.py`): Journey A initial build and Journey B incremental refresh idempotency.
+- **AI Intelligence** (`test_ai_enrichment.py`): Table descriptions, domain proposals, drift detection.
+- **Governance Review** (`test_governance.py`): Approve, reject (with rejection memory), modify workflows, and audit trail.
+- **Delta Persistence** (`test_delta_store.py`): Versioned Delta writes, conflict detection, and pending retry queues.
+- **Local MCP Server** (`test_mcp_server.py`): JSON-RPC 2.0 tool dispatching over stdio and HTTP.
+- **Full API Integration** (`test_api_endpoints.py`): End-to-end lifecycle test covering Health, Auth, Discovery, Build, Enrich, Review, Sync, and MCP JSON-RPC.
 
 ---
 
-## License
+## ❓ Troubleshooting & FAQ
+
+### 1. "The refresh token has expired due to inactivity" (Azure CLI)
+If your Azure CLI session has expired after 90 days of inactivity:
+```bash
+az logout
+az login --scope "https://api.fabric.microsoft.com/.default"
+```
+Or simply select **"Demo Sandbox (Mock)"** in the VS Code quick-pick to develop offline without Azure credentials.
+
+### 2. Port 9720 is already in use
+The Python runtime binds by default to `127.0.0.1:9720`. If port 9720 is occupied, set the environment variable:
+```bash
+export FABRIC_RUNTIME_PORT=9725
+```
+And adjust `lakehouseIntelligence.runtime.port` in VS Code settings (`settings.json`).
+
+### 3. Rebuilding after making changes
+```bash
+# Rebuild extension
+cd src/extension && npm run build
+
+# Rebuild React webview
+cd ../webview-ui && npm run build
+```
+
+---
+
+## 📄 License
 
 MIT

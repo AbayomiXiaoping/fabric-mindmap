@@ -6,3 +6,4 @@ from lakehouse_intelligence.mcp.server import MCPServer
 from lakehouse_intelligence.mcp.tools import TOOL_DEFINITIONS
 
 __all__ = ["MCPServer", "TOOL_DEFINITIONS"]
+
