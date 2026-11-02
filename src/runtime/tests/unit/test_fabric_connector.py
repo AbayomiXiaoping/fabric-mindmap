@@ -61,3 +61,4 @@ async def test_fabric_rest_connector_unauthorized_handling():
         caps = await connector.discover_capabilities()
         assert caps["workspaces"] == CapabilityStatus.NOT_AUTHORIZED
         assert caps["lakehouses"] == CapabilityStatus.NOT_AUTHORIZED
+

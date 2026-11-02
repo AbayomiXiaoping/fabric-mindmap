@@ -106,3 +106,4 @@ class FabricAuthManager:
             )
             self._cached_status = status
             return status
+

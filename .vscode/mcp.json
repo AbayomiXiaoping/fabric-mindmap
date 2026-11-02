@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "fabric-lakehouse-intelligence": {
+      "command": "${workspaceFolder}/src/runtime/.venv/bin/python",
+      "args": ["-m", "lakehouse_intelligence.main", "--mcp-stdio"],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  }
+}

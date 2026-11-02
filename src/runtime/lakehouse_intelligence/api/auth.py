@@ -68,3 +68,4 @@ async def list_lakehouses(workspace_id: str) -> list[dict[str, Any]]:
         raise HTTPException(status_code=401, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to query Lakehouses: {e}")
+

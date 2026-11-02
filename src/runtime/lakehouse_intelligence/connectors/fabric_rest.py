@@ -211,3 +211,4 @@ class FabricRestConnector(BaseFabricConnector):
                     extraction_status=ExtractionStatus.PARTIAL,
                 )
             ]
+
