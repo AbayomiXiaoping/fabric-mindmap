@@ -1,0 +1,130 @@
+{
+  "name": "lakehouse-intelligence",
+  "displayName": "Fabric Lakehouse Intelligence Explorer",
+  "description": "Metadata-driven knowledge graph explorer for Microsoft Fabric Lakehouse",
+  "version": "0.1.0",
+  "publisher": "lakehouse-intelligence",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Data Science",
+    "Visualization",
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onView:lakehouseExplorer"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "lakehouse-intelligence",
+          "title": "Lakehouse Intelligence",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "lakehouse-intelligence": [
+        {
+          "id": "lakehouseExplorer",
+          "name": "Explorer",
+          "icon": "media/icon.svg"
+        },
+        {
+          "id": "lakehouseGovernance",
+          "name": "Governance",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "lakehouse.connect",
+        "title": "Connect to Lakehouse",
+        "category": "Lakehouse Intelligence"
+      },
+      {
+        "command": "lakehouse.disconnect",
+        "title": "Disconnect",
+        "category": "Lakehouse Intelligence"
+      },
+      {
+        "command": "lakehouse.buildGraph",
+        "title": "Build Knowledge Graph",
+        "category": "Lakehouse Intelligence"
+      },
+      {
+        "command": "lakehouse.refreshGraph",
+        "title": "Refresh Metadata",
+        "category": "Lakehouse Intelligence"
+      },
+      {
+        "command": "lakehouse.openMindmap",
+        "title": "Open Mindmap",
+        "category": "Lakehouse Intelligence"
+      },
+      {
+        "command": "lakehouse.openTableDetails",
+        "title": "Open Table Details",
+        "category": "Lakehouse Intelligence"
+      },
+      {
+        "command": "lakehouse.selectLakehouse",
+        "title": "Select Lakehouse",
+        "category": "Lakehouse Intelligence"
+      }
+    ],
+    "configuration": {
+      "title": "Lakehouse Intelligence",
+      "properties": {
+        "lakehouseIntelligence.runtime.host": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Runtime host (loopback only)"
+        },
+        "lakehouseIntelligence.runtime.port": {
+          "type": "number",
+          "default": 9720,
+          "description": "Runtime port"
+        },
+        "lakehouseIntelligence.runtime.autoStart": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto-start Python runtime"
+        },
+        "lakehouseIntelligence.ai.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable AI enrichment"
+        },
+        "lakehouseIntelligence.persistence.fabricEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable Fabric Delta persistence"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
+    "watch": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap --watch",
+    "package": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify --sourcemap",
+    "lint": "eslint src/",
+    "test": "node --experimental-vm-modules node_modules/@vscode/test-electron/out/runTest.js",
+    "build:esbuild": "node esbuild.mjs"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "esbuild": "^0.19.12",
+    "@vscode/test-electron": "^2.3.8",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "prettier": "^3.2.4"
+  }
+}

@@ -1,0 +1,120 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Lakehouse Intelligence API Contracts",
+  "description": "Shared JSON schemas for Extension ↔ Runtime communication",
+  "definitions": {
+    "HealthStatus": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string", "enum": ["healthy", "unhealthy"] },
+        "version": { "type": "string" },
+        "sqlite_connected": { "type": "boolean" },
+        "uptime_seconds": { "type": "number" }
+      },
+      "required": ["status", "version"]
+    },
+    "NodeType": {
+      "type": "string",
+      "enum": ["LAKEHOUSE", "SCHEMA", "DOMAIN", "TABLE", "COLUMN", "BUSINESS_CONCEPT"]
+    },
+    "EdgeType": {
+      "type": "string",
+      "enum": ["CONTAINS", "HAS_COLUMN", "REFERENCES", "DERIVED_FROM", "USED_BY", "SEMANTICALLY_RELATED"]
+    },
+    "EvidenceType": {
+      "type": "string",
+      "enum": ["DECLARED_PHYSICAL", "RULE_INFERRED", "AI_INFERRED", "USER_DEFINED", "SYSTEM_HIERARCHY"]
+    },
+    "ValidationStatus": {
+      "type": "string",
+      "enum": ["DETECTED", "SUGGESTED", "PENDING", "APPROVED", "REJECTED", "DEPRECATED", "REVIEW_REQUIRED"]
+    },
+    "ExtractionStatus": {
+      "type": "string",
+      "enum": ["SUCCESS", "PARTIAL", "UNSUPPORTED", "UNAUTHORIZED", "FAILED"]
+    },
+    "ScanStatus": {
+      "type": "object",
+      "properties": {
+        "scan_id": { "type": "string" },
+        "lakehouse_id": { "type": "string" },
+        "scan_type": { "type": "string", "enum": ["INITIAL", "MANUAL_REFRESH", "REBUILD"] },
+        "status": { "type": "string", "enum": ["STARTED", "EXTRACTING", "ANALYZING", "VALIDATING", "PUBLISHING", "COMPLETED", "PARTIAL", "FAILED", "CANCELLED"] },
+        "base_graph_version": { "type": ["integer", "null"] },
+        "candidate_graph_version": { "type": ["integer", "null"] },
+        "started_at": { "type": "string", "format": "date-time" },
+        "completed_at": { "type": ["string", "null"], "format": "date-time" },
+        "summary": { "type": "object" },
+        "error": { "type": ["string", "null"] }
+      },
+      "required": ["scan_id", "lakehouse_id", "status", "started_at"]
+    },
+    "GraphSummary": {
+      "type": "object",
+      "properties": {
+        "lakehouse_id": { "type": "string" },
+        "graph_version": { "type": "integer" },
+        "node_count": { "type": "integer" },
+        "edge_count": { "type": "integer" },
+        "table_count": { "type": "integer" },
+        "column_count": { "type": "integer" },
+        "last_scan_at": { "type": ["string", "null"], "format": "date-time" },
+        "sync_status": { "type": "string" }
+      },
+      "required": ["lakehouse_id", "graph_version", "node_count", "edge_count"]
+    },
+    "NodeInfo": {
+      "type": "object",
+      "properties": {
+        "node_id": { "type": "string" },
+        "node_type": { "$ref": "#/definitions/NodeType" },
+        "name": { "type": "string" },
+        "qualified_name": { "type": "string" },
+        "technical_status": { "type": "string" },
+        "has_children": { "type": "boolean" },
+        "child_count": { "type": "integer" },
+        "metadata": { "type": "object" }
+      },
+      "required": ["node_id", "node_type", "name"]
+    },
+    "TableDetails": {
+      "type": "object",
+      "properties": {
+        "node": { "$ref": "#/definitions/NodeInfo" },
+        "table_metadata": {
+          "type": "object",
+          "properties": {
+            "schema_name": { "type": "string" },
+            "table_name": { "type": "string" },
+            "table_format": { "type": "string" },
+            "description": { "type": ["string", "null"] },
+            "extraction_status": { "$ref": "#/definitions/ExtractionStatus" },
+            "fingerprint": { "type": "string" },
+            "observed_at": { "type": "string", "format": "date-time" }
+          }
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "column_id": { "type": "string" },
+              "column_name": { "type": "string" },
+              "data_type": { "type": "string" },
+              "source_data_type": { "type": ["string", "null"] },
+              "nullable": { "type": ["boolean", "null"] },
+              "ordinal_position": { "type": ["integer", "null"] },
+              "description": { "type": ["string", "null"] },
+              "is_primary_key": { "type": ["boolean", "null"] },
+              "is_foreign_key": { "type": ["boolean", "null"] },
+              "fingerprint": { "type": "string" }
+            }
+          }
+        },
+        "relationships": { "type": "array", "items": { "type": "object" } }
+      },
+      "required": ["node", "columns"]
+    }
+  }
+}
+
