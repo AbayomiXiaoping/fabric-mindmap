@@ -270,4 +270,15 @@ export class RuntimeClient {
   async getGovernanceHistory(lakehouseId: string): Promise<UserDecision[]> {
     return this.request<UserDecision[]>(`/api/v1/lakehouses/${lakehouseId}/governance/history`);
   }
+
+  async getSyncStatus(lakehouseId: string): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>(`/api/v1/sync/status?lakehouse_id=${encodeURIComponent(lakehouseId)}`);
+  }
+
+  async syncSnapshot(lakehouseId: string, force: boolean = false): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>('/api/v1/sync/push', {
+      method: 'POST',
+      body: JSON.stringify({ lakehouse_id: lakehouseId, force }),
+    });
+  }
 }

@@ -24,6 +24,10 @@ export const Overview: React.FC<Props> = ({ summary, onNavigate }) => {
     vscode.postMessage({ type: 'enrichMetadata', lakehouseId });
   };
 
+  const handleSync = () => {
+    vscode.postMessage({ type: 'syncDelta', lakehouseId });
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -43,6 +47,9 @@ export const Overview: React.FC<Props> = ({ summary, onNavigate }) => {
           <button className="secondary" onClick={handleRefresh}>Refresh Metadata</button>
           <button style={{ background: '#6f42c1', color: 'white' }} onClick={handleEnrich}>
             ✨ Enrich with AI
+          </button>
+          <button style={{ background: '#0078d4', color: 'white' }} onClick={handleSync}>
+            ☁️ Sync to Delta
           </button>
         </div>
       </div>

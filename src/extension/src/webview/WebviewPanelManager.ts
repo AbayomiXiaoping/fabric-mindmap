@@ -128,6 +128,23 @@ export class WebviewPanelManager {
         }
         break;
 
+      case 'syncDelta':
+        try {
+          const res = await client.syncSnapshot(msg.lakehouseId);
+          this.postMessage(panel, {
+            type: 'notification',
+            level: 'info',
+            message: `Delta sync complete: Status ${res.sync_status}, Fabric version ${res.fabric_version || 'N/A'}`,
+          });
+        } catch (err) {
+          this.postMessage(panel, {
+            type: 'notification',
+            level: 'error',
+            message: `Delta sync failed: ${err}`,
+          });
+        }
+        break;
+
       case 'fetchGovernanceQueue':
         try {
           const items = await client.getGovernanceQueue(msg.lakehouseId);
