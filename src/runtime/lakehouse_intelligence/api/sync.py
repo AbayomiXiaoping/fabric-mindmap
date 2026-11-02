@@ -15,7 +15,7 @@ from lakehouse_intelligence.storage.delta_store import (
     SyncConflictError,
 )
 
-router = APIRouter(prefix="/sync", tags=["synchronization"])
+router = APIRouter(prefix="/api/v1/sync", tags=["synchronization"])
 
 
 class PushSyncRequest(BaseModel):

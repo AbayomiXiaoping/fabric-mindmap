@@ -66,6 +66,9 @@ class FabricAuthManager:
         elif method == "device_code":
             logger.info("Configured Device Code Credential")
             self._credential = DeviceCodeCredential(tenant_id=t_id)
+        elif method == "mock":
+            logger.info("Configured Mock Sandbox Credential")
+            self._credential = None
         else:
             logger.info("Configured DefaultAzureCredential fallback chain")
             self._credential = DefaultAzureCredential(
@@ -73,19 +76,32 @@ class FabricAuthManager:
                 shared_cache_tenant_id=t_id,
             )
 
-    def get_credential(self) -> TokenCredential:
-        if not self._credential:
+    def get_credential(self) -> Optional[TokenCredential]:
+        if not self._credential and self._auth_method != "mock":
             self.configure_credentials()
         return self._credential
 
     async def get_access_token(self, scope: str = FABRIC_SCOPE) -> str:
         """Acquires a valid Bearer token for the requested Fabric / OneLake scope."""
+        if self._auth_method == "mock":
+            return "mock-access-token-9999"
         cred = self.get_credential()
         token = cred.get_token(scope)
         return token.token
 
     async def verify_authentication(self) -> AuthStatus:
         """Attempts to obtain a token to verify credentials without logging the token itself."""
+        if self._auth_method == "mock":
+            status = AuthStatus(
+                is_authenticated=True,
+                auth_method="mock",
+                tenant_id="mock-tenant-01",
+                account_name="mock_developer@sandbox.local",
+                token_expiry="2099-12-31T23:59:59Z",
+            )
+            self._cached_status = status
+            return status
+
         try:
             cred = self.get_credential()
             token = cred.get_token(FABRIC_SCOPE)
@@ -98,7 +114,7 @@ class FabricAuthManager:
             self._cached_status = status
             return status
         except Exception as e:
-            logger.warn(f"Authentication verification failed: {e}")
+            logger.warning(f"Authentication verification failed: {e}")
             status = AuthStatus(
                 is_authenticated=False,
                 auth_method=self._auth_method,

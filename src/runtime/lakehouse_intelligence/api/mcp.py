@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from lakehouse_intelligence.mcp.server import MCPServer
 from lakehouse_intelligence.storage.sqlite_store import SQLiteStore
 
-router = APIRouter(prefix="/mcp", tags=["Model Context Protocol (MCP)"])
+router = APIRouter(tags=["Model Context Protocol (MCP)"])
 
 
 def get_mcp_server() -> MCPServer:
@@ -18,8 +18,10 @@ def get_mcp_server() -> MCPServer:
     return app_state.mcp_server
 
 
-@router.post("")
-@router.post("/rpc")
+@router.post("/mcp")
+@router.post("/mcp/rpc")
+@router.post("/api/v1/mcp")
+@router.post("/api/v1/mcp/rpc")
 async def mcp_jsonrpc_endpoint(
     request: Request,
     server: MCPServer = Depends(get_mcp_server),

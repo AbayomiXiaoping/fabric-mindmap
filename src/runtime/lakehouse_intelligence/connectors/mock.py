@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+from typing import Any, Optional, Sequence
 from lakehouse_intelligence.connectors.base import BaseFabricConnector
 from lakehouse_intelligence.connectors.models import (
     CapabilityStatus,
@@ -14,6 +14,26 @@ from lakehouse_intelligence.connectors.models import (
 
 class MockFabricConnector(BaseFabricConnector):
     """Provides canned Lakehouse metadata for testing without live Entra ID credentials."""
+
+    async def list_workspaces(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "workspace_id": "ws-demo-banking-01",
+                "name": "Retail_Analytics_Workspace",
+                "type": "Workspace",
+                "description": "Demonstration banking analytics workspace",
+            }
+        ]
+
+    async def list_lakehouses(self, workspace_id: Optional[str] = None) -> list[dict[str, Any]]:
+        return [
+            {
+                "lakehouse_id": "lh-demo-banking-01",
+                "name": "Fabric_Retail_Banking_Lakehouse",
+                "workspace_id": workspace_id or "ws-demo-banking-01",
+                "description": "Core retail banking Lakehouse",
+            }
+        ]
 
     async def discover_capabilities(self) -> dict[str, CapabilityStatus]:
         return {
