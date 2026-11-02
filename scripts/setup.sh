@@ -94,3 +94,4 @@ echo -e "       ${YELLOW}code .${RESET}"
 echo -e "  2. Press ${BOLD}F5${RESET} to launch the Extension Development Host."
 echo -e "  3. In the Lakehouse Intelligence sidebar, click ${BOLD}'Connect to Lakehouse'${RESET}."
 echo -e "  4. For Copilot Agent, standard MCP tools are configured in ${YELLOW}.vscode/mcp.json${RESET}.\n"
+
