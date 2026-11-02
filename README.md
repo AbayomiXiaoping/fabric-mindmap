@@ -4,6 +4,42 @@ A developer-focused Visual Studio Code extension and local runtime that connects
 
 ---
 
+## 🎯 What is the Purpose & Value of this Extension?
+
+When data engineers and developers build notebooks, SQL pipelines, dbt models, or data apps in VS Code, they face several daily friction points:
+
+1. **Context Switching to Fabric Portal**: To check table schemas, column types, or primary/foreign keys, you constantly have to leave VS Code, open a web browser, log in to the Microsoft Fabric portal, and click through workspaces.
+2. **Missing Visual Relationship Maps**: The Fabric web UI does not provide an interactive visual mindmap showing how tables, schemas, and columns connect across business domains.
+3. **AI Hallucinations in Coding Agents**: GitHub Copilot or generic AI tools often lack grounded schema knowledge of your Lakehouse, leading to incorrect queries and wrong column references.
+4. **Ungoverned AI Drift**: Generic AI tools might misclassify business logic without any developer audit trail or human approval.
+
+### Everyday Developer Uses & Key Capabilities
+
+- **Interactive Mindmap & Schema Explorer**: Renders a hierarchical mindmap (`Lakehouse → Schemas → Tables → Columns → Relationships`). Instantly trace dependencies, identify foreign keys, and inspect normalized data types directly inside VS Code before writing queries.
+- **Governed AI Business Intelligence**: Automatically generates plain-English business descriptions for technical tables and proposes business domain classifications (e.g. *Customer Management*, *Transaction Ledger*). All suggestions are placed in an interactive **Governance Queue** where developers can **Approve**, **Modify**, or **Reject** them before they become validated knowledge.
+- **Rejection Memory**: Rejected proposals are stored with their SHA-256 evidence fingerprints so the AI never redundantly re-proposes rejected items.
+- **Powering GitHub Copilot with Live Lakehouse Context (MCP)**: Hosts a local Model Context Protocol (MCP) server that connects directly to GitHub Copilot Agent. Copilot can answer questions, generate join queries, and navigate schemas using live Lakehouse metadata.
+- **Zero Business-Row Scanning (100% Security Compliant)**: Only technical metadata is read from `_delta_log` commits and API catalogs. **No customer data, banking transactions, or parquet data files are ever downloaded or scanned**.
+- **Offline Demo Sandbox**: Includes a built-in mock sandbox with retail banking schema (`customers`, `accounts`, `transactions`, `daily_balances`) for testing and exploration with zero Azure credentials or cloud costs.
+
+### High-Level Workflow
+
+```
+Microsoft Fabric (Source) ──[ Metadata Only ]──► Local SQLite Cache
+                                                        │
+                      ┌─────────────────────────────────┴─────────────────────────────────┐
+                      ▼                                                                   ▼
+       VS Code Extension & React UI                                          Local MCP Server (24 Tools)
+  ┌─────────────────────────────────────┐                                   ┌───────────────────────────┐
+  │ • Visual Mindmap & Table Explorer   │                                   │ GitHub Copilot Chat Agent │
+  │ • AI Business Domain Proposals      │                                   │ (Answers schema questions │
+  │ • Human Governance Review Queue     │                                   │  & generates joins/code)  │
+  │ • ☁️ Push to Fabric Delta Lakehouse │                                   └───────────────────────────┘
+  └─────────────────────────────────────┘
+```
+
+---
+
 ## 🏛️ Architecture & Core Invariants
 
 1. **Zero Business-Row Scanning**:
@@ -19,6 +55,32 @@ A developer-focused Visual Studio Code extension and local runtime that connects
    Scans run strictly on developer demand. Unknown extraction states never corrupt existing validated knowledge.
 5. **Local MCP Server (2024-11-05)**:
    Exposes 24 registered tools over stdio and HTTP JSON-RPC for seamless integration with **GitHub Copilot Agent** and Claude Desktop.
+
+---
+
+## ⚡ Technology Stack & Why We Need Node.js
+
+This project is a hybrid monorepo combining **TypeScript (VS Code Extension & React UI)** with **Python (Knowledge Graph Engine & MCP Server)**.
+
+### Why is Node.js Required?
+
+1. **VS Code Extension Host Runs on Node.js**:
+   The official Visual Studio Code API (`vscode`) executes inside a Node.js / Electron process. The extension logic ([`src/extension/`](file:///Users/shi/banking-ai-agent/fabric_mindmap/src/extension)) is written in TypeScript and uses Node.js with `esbuild` to compile into [`dist/extension.js`](file:///Users/shi/banking-ai-agent/fabric_mindmap/src/extension/dist/extension.js).
+2. **React Webview Frontend Bundling**:
+   The interactive Mindmap and Table Explorer UI ([`src/webview-ui/`](file:///Users/shi/banking-ai-agent/fabric_mindmap/src/webview-ui)) is built with **React 18 + Vite**. Node.js and `npm` are required to compile TypeScript and bundle the frontend into static assets.
+
+### Technology & Runtime Matrix
+
+| Layer | Component | Language / Framework | Runtime Required | Purpose |
+|---|---|---|---|---|
+| **Extension Shell** | `src/extension/` | TypeScript + `esbuild` | **Node.js** | VS Code Activity Bar icon, TreeViews, commands, process lifecycle manager |
+| **User Interface** | `src/webview-ui/` | React 18 + TypeScript + Vite | **Node.js** | Interactive Mindmap, Table Explorer, Governance Queue |
+| **Intelligence Core** | `src/runtime/` | Python 3.9+ + FastAPI | **Python** | Knowledge Graph engine, SQLite store, SHA-256 fingerprints, AI enrichment, Delta Lake sync |
+| **Local MCP Server** | `src/runtime/lakehouse_intelligence/mcp/` | Python (JSON-RPC 2.0) | **Python** | Exposes 24 tools to GitHub Copilot Agent over stdio |
+
+> [!NOTE]
+> **Development vs. End-User Runtime**:  
+> Node.js is only required on your machine during **development** to compile TypeScript and bundle React. Once the extension is packaged into a `.vsix` file, VS Code runs it using its own **internal Node.js runtime** built into VS Code, so end-users only need Python installed.
 
 ---
 
@@ -69,11 +131,11 @@ fabric_mindmap/
 
 ### 1. Prerequisites
 
-Before installing, ensure the following prerequisites are installed on your machine:
+Before installing, ensure the following tools are installed on your system:
 
 | Tool | Minimum Version | Installation / Verification |
 |---|---|---|
-| **Node.js** | `≥ 18.0.0` (LTS or newer) | `node -v` (Install via `brew install node` or [nodejs.org](https://nodejs.org/)) |
+| **Node.js** | `≥ 18.0.0` (LTS recommended) | `node -v` (Install via `brew install node` or [nodejs.org](https://nodejs.org/)) |
 | **npm** | `≥ 9.0.0` | `npm -v` |
 | **Python** | `≥ 3.9` (3.9, 3.10, 3.11, 3.12, 3.13) | `python3 --version` |
 | **VS Code** | `≥ 1.85.0` | `code -v` ([code.visualstudio.com](https://code.visualstudio.com/)) |
@@ -86,7 +148,7 @@ Before installing, ensure the following prerequisites are installed on your mach
 From the project root directory, run the automated setup script:
 
 ```bash
-# Make sure the script is executable and run:
+# Run the setup script:
 bash scripts/setup.sh
 
 # Or via npm:
