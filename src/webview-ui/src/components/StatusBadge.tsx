@@ -18,3 +18,4 @@ export const StatusBadge: React.FC<Props> = ({ status }) => {
 
   return <span className={`badge ${colorClass}`}>{status}</span>;
 };
+

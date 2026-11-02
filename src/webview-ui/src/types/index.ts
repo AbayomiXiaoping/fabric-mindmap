@@ -66,3 +66,4 @@ export interface WebviewState {
   lakehouseId: string;
   baseUrl: string;
 }
+

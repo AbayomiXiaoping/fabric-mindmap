@@ -166,3 +166,4 @@ async def get_scan_status(
         "scan": scan.model_dump(),
         "change_events": [e.model_dump() for e in events],
     }
+

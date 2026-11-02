@@ -31,3 +31,4 @@ class VSCodeAPI {
 }
 
 export const vscode = new VSCodeAPI();
+

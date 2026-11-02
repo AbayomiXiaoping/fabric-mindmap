@@ -150,3 +150,4 @@ export const Mindmap: React.FC<Props> = ({ onSelectTable }) => {
     </div>
   );
 };
+

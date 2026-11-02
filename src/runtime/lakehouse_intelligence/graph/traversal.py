@@ -45,3 +45,4 @@ class GraphTraversal:
         """Gets all outgoing and incoming relationship edges for a table."""
         edges = await self.store.get_edges_for_node(table_node_id)
         return [e for e in edges if e.edge_type in (EdgeType.REFERENCES, EdgeType.DERIVED_FROM)]
+

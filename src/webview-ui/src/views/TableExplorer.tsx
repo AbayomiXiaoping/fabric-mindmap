@@ -123,3 +123,4 @@ export const TableExplorer: React.FC<Props> = ({ selectedTableId }) => {
     </div>
   );
 };
+

@@ -48,3 +48,4 @@ class ExtractedTable:
     properties: dict[str, Any] = field(default_factory=dict)
     columns: list[ExtractedColumn] = field(default_factory=list)
     extraction_status: ExtractionStatus = ExtractionStatus.SUCCESS
+

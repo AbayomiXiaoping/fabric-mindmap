@@ -143,3 +143,4 @@ class SnapshotManager:
         await self.store.save_scan_run(scan_run)
 
         return snapshot
+

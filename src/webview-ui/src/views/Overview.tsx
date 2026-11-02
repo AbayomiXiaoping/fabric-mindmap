@@ -10,12 +10,18 @@ interface Props {
 }
 
 export const Overview: React.FC<Props> = ({ summary, onNavigate }) => {
+  const lakehouseId = summary?.lakehouse_id || 'lh-banking-prod-01';
+
   const handleBuild = () => {
-    vscode.postMessage({ type: 'buildGraph', lakehouseId: summary?.lakehouse_id || 'lh-banking-prod-01' });
+    vscode.postMessage({ type: 'buildGraph', lakehouseId });
   };
 
   const handleRefresh = () => {
-    vscode.postMessage({ type: 'refreshGraph', lakehouseId: summary?.lakehouse_id || 'lh-banking-prod-01' });
+    vscode.postMessage({ type: 'refreshGraph', lakehouseId });
+  };
+
+  const handleEnrich = () => {
+    vscode.postMessage({ type: 'enrichMetadata', lakehouseId });
   };
 
   return (
@@ -33,8 +39,11 @@ export const Overview: React.FC<Props> = ({ summary, onNavigate }) => {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={handleBuild}>Build Knowledge Graph</button>
+          <button onClick={handleBuild}>Build Graph</button>
           <button className="secondary" onClick={handleRefresh}>Refresh Metadata</button>
+          <button style={{ background: '#6f42c1', color: 'white' }} onClick={handleEnrich}>
+            ✨ Enrich with AI
+          </button>
         </div>
       </div>
 
@@ -68,11 +77,13 @@ export const Overview: React.FC<Props> = ({ summary, onNavigate }) => {
         </div>
 
         <div className="card">
-          <div style={{ color: '#888', fontSize: '12px', textTransform: 'uppercase' }}>Total Graph Nodes</div>
-          <div style={{ fontSize: '28px', fontWeight: 'bold', margin: '8px 0' }}>
-            {summary?.node_count || 27}
+          <div style={{ color: '#888', fontSize: '12px', textTransform: 'uppercase' }}>Governance</div>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', margin: '8px 0', color: '#e06c75' }}>
+            Review Queue
           </div>
-          <span style={{ fontSize: '12px', color: '#888' }}>Lakehouse, Schemas, Tables, Columns</span>
+          <button className="secondary" style={{ width: '100%' }} onClick={() => onNavigate('governance')}>
+            Open Reviews →
+          </button>
         </div>
       </div>
     </div>

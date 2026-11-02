@@ -19,10 +19,30 @@ from lakehouse_intelligence.models import (
     TableMetadata,
     ChangeEvent,
     BusinessDomain,
+    DomainMembership,
+    DomainStatus,
+    MembershipStatus,
+    ValidatedRelationship,
+    ValidatedRelStatus,
+    BusinessDefinition,
+    AIInsight,
+    InsightType,
+    InsightStatus,
+    AIDependency,
+    DependencyRole,
     DomainSuggestion,
     RelationshipSuggestion,
+    SuggestionStatus,
     UserDecision,
+    DecisionAction,
     ReviewQueueItem,
+    ReviewType,
+    ReviewStatus,
+    ReviewPriority,
+    ChangeFlag,
+    ChangeFlagType,
+    FlagStatus,
+    RejectionRecord,
     SyncState,
 )
 
@@ -157,6 +177,169 @@ CREATE TABLE IF NOT EXISTS kg_sync_state (
     last_sync_at TEXT,
     updated_at TEXT NOT NULL
 );
+
+-- AI Intelligence Tables
+CREATE TABLE IF NOT EXISTS kg_ai_insights (
+    insight_id TEXT PRIMARY KEY,
+    lakehouse_id TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    insight_type TEXT NOT NULL,
+    content_json TEXT NOT NULL,
+    proposal_version INTEGER NOT NULL,
+    input_fingerprint TEXT NOT NULL,
+    prompt_version TEXT NOT NULL,
+    model_provider TEXT NOT NULL,
+    model_name TEXT NOT NULL,
+    status TEXT NOT NULL,
+    generated_at TEXT NOT NULL,
+    supersedes_insight_id TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_insights_lh ON kg_ai_insights(lakehouse_id, entity_id);
+
+CREATE TABLE IF NOT EXISTS kg_ai_dependencies (
+    dependency_id TEXT PRIMARY KEY,
+    insight_id TEXT NOT NULL,
+    input_entity_id TEXT NOT NULL,
+    input_fingerprint TEXT NOT NULL,
+    dependency_role TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ai_deps ON kg_ai_dependencies(insight_id);
+
+CREATE TABLE IF NOT EXISTS kg_domain_suggestions (
+    suggestion_id TEXT PRIMARY KEY,
+    lakehouse_id TEXT NOT NULL,
+    table_id TEXT NOT NULL,
+    proposed_domain_name TEXT NOT NULL,
+    rationale TEXT NOT NULL,
+    evidence_json TEXT NOT NULL,
+    insight_id TEXT NOT NULL,
+    evidence_fingerprint TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_dom_sug_lh ON kg_domain_suggestions(lakehouse_id, table_id);
+
+CREATE TABLE IF NOT EXISTS kg_relationship_suggestions (
+    suggestion_id TEXT PRIMARY KEY,
+    lakehouse_id TEXT NOT NULL,
+    source_table_id TEXT NOT NULL,
+    source_column_id TEXT NOT NULL,
+    target_table_id TEXT NOT NULL,
+    target_column_id TEXT NOT NULL,
+    relationship_type TEXT NOT NULL,
+    inference_method TEXT NOT NULL,
+    confidence REAL,
+    rationale TEXT NOT NULL,
+    evidence_json TEXT NOT NULL,
+    evidence_fingerprint TEXT NOT NULL,
+    insight_id TEXT,
+    status TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_rel_sug_lh ON kg_relationship_suggestions(lakehouse_id);
+
+-- Validated Knowledge Tables
+CREATE TABLE IF NOT EXISTS kg_business_domains (
+    domain_id TEXT PRIMARY KEY,
+    lakehouse_id TEXT NOT NULL,
+    domain_name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS kg_domain_memberships (
+    membership_id TEXT PRIMARY KEY,
+    lakehouse_id TEXT NOT NULL,
+    table_id TEXT NOT NULL,
+    domain_id TEXT NOT NULL,
+    approval_decision_id TEXT NOT NULL,
+    valid_from_version INTEGER NOT NULL,
+    valid_to_version INTEGER,
+    status TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_dom_mem_tbl ON kg_domain_memberships(table_id);
+
+CREATE TABLE IF NOT EXISTS kg_validated_relationships (
+    relationship_id TEXT PRIMARY KEY,
+    lakehouse_id TEXT NOT NULL,
+    source_node_id TEXT NOT NULL,
+    target_node_id TEXT NOT NULL,
+    relationship_type TEXT NOT NULL,
+    originating_suggestion_id TEXT,
+    approval_decision_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    valid_from_version INTEGER NOT NULL,
+    valid_to_version INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS kg_business_definitions (
+    definition_id TEXT PRIMARY KEY,
+    lakehouse_id TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    business_term TEXT NOT NULL,
+    approved_definition TEXT NOT NULL,
+    approval_decision_id TEXT NOT NULL,
+    valid_from_version INTEGER NOT NULL,
+    valid_to_version INTEGER
+);
+
+-- Governance Tables
+CREATE TABLE IF NOT EXISTS kg_review_queue (
+    review_id TEXT PRIMARY KEY,
+    lakehouse_id TEXT NOT NULL,
+    review_type TEXT NOT NULL,
+    proposal_id TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    priority TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    resolved_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_rev_lh_status ON kg_review_queue(lakehouse_id, status);
+
+CREATE TABLE IF NOT EXISTS kg_user_decisions (
+    decision_id TEXT PRIMARY KEY,
+    lakehouse_id TEXT NOT NULL,
+    review_id TEXT NOT NULL,
+    actor_id TEXT NOT NULL,
+    action TEXT NOT NULL,
+    previous_value_json TEXT NOT NULL,
+    new_value_json TEXT NOT NULL,
+    comments TEXT,
+    evidence_fingerprint TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_dec_lh ON kg_user_decisions(lakehouse_id);
+
+CREATE TABLE IF NOT EXISTS kg_change_flags (
+    flag_id TEXT PRIMARY KEY,
+    lakehouse_id TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    flag_type TEXT NOT NULL,
+    previous_value_json TEXT NOT NULL,
+    proposed_value_json TEXT NOT NULL,
+    previous_fingerprint TEXT NOT NULL,
+    current_fingerprint TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_flags_lh ON kg_change_flags(lakehouse_id, status);
+
+CREATE TABLE IF NOT EXISTS kg_rejection_records (
+    rejection_id TEXT PRIMARY KEY,
+    lakehouse_id TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    proposal_id TEXT NOT NULL,
+    rejected_fingerprint TEXT NOT NULL,
+    reason TEXT,
+    decision_id TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_rej_fp ON kg_rejection_records(entity_id, rejected_fingerprint);
 """
 
 
@@ -577,6 +760,416 @@ class SQLiteStore:
         )
         rows = await cursor.fetchall()
         return [ChangeEvent(**dict(r)) for r in rows]
+
+    # --- AI Intelligence Operations ---
+
+    async def save_ai_insight(self, insight: AIInsight) -> None:
+        query = """
+        INSERT OR REPLACE INTO kg_ai_insights (
+            insight_id, lakehouse_id, entity_id, insight_type, content_json,
+            proposal_version, input_fingerprint, prompt_version, model_provider,
+            model_name, status, generated_at, supersedes_insight_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        await self.db.execute(
+            query,
+            (
+                insight.insight_id,
+                insight.lakehouse_id,
+                insight.entity_id,
+                insight.insight_type.value,
+                insight.content_json,
+                insight.proposal_version,
+                insight.input_fingerprint,
+                insight.prompt_version,
+                insight.model_provider,
+                insight.model_name,
+                insight.status.value,
+                insight.generated_at,
+                insight.supersedes_insight_id,
+            ),
+        )
+        await self.db.commit()
+
+    async def get_ai_insight(self, insight_id: str) -> Optional[AIInsight]:
+        cursor = await self.db.execute("SELECT * FROM kg_ai_insights WHERE insight_id = ?", (insight_id,))
+        row = await cursor.fetchone()
+        return AIInsight(**dict(row)) if row else None
+
+    async def get_ai_insights_for_entity(self, entity_id: str, insight_type: Optional[InsightType] = None) -> list[AIInsight]:
+        if insight_type:
+            cursor = await self.db.execute(
+                "SELECT * FROM kg_ai_insights WHERE entity_id = ? AND insight_type = ? ORDER BY generated_at DESC",
+                (entity_id, insight_type.value),
+            )
+        else:
+            cursor = await self.db.execute(
+                "SELECT * FROM kg_ai_insights WHERE entity_id = ? ORDER BY generated_at DESC",
+                (entity_id,),
+            )
+        rows = await cursor.fetchall()
+        return [AIInsight(**dict(r)) for r in rows]
+
+    async def save_ai_dependency(self, dep: AIDependency) -> None:
+        query = """
+        INSERT OR REPLACE INTO kg_ai_dependencies (
+            dependency_id, insight_id, input_entity_id, input_fingerprint,
+            dependency_role, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        """
+        await self.db.execute(
+            query,
+            (
+                dep.dependency_id,
+                dep.insight_id,
+                dep.input_entity_id,
+                dep.input_fingerprint,
+                dep.dependency_role.value,
+                dep.created_at,
+            ),
+        )
+        await self.db.commit()
+
+    async def save_domain_suggestion(self, sug: DomainSuggestion) -> None:
+        query = """
+        INSERT OR REPLACE INTO kg_domain_suggestions (
+            suggestion_id, lakehouse_id, table_id, proposed_domain_name,
+            rationale, evidence_json, insight_id, evidence_fingerprint,
+            status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        await self.db.execute(
+            query,
+            (
+                sug.suggestion_id,
+                sug.lakehouse_id,
+                sug.table_id,
+                sug.proposed_domain_name,
+                sug.rationale,
+                sug.evidence_json,
+                sug.insight_id,
+                sug.evidence_fingerprint,
+                sug.status.value,
+                sug.created_at,
+            ),
+        )
+        await self.db.commit()
+
+    async def get_domain_suggestion(self, suggestion_id: str) -> Optional[DomainSuggestion]:
+        cursor = await self.db.execute("SELECT * FROM kg_domain_suggestions WHERE suggestion_id = ?", (suggestion_id,))
+        row = await cursor.fetchone()
+        return DomainSuggestion(**dict(row)) if row else None
+
+    async def get_domain_suggestions(self, lakehouse_id: str, status: Optional[SuggestionStatus] = None) -> list[DomainSuggestion]:
+        if status:
+            cursor = await self.db.execute(
+                "SELECT * FROM kg_domain_suggestions WHERE lakehouse_id = ? AND status = ? ORDER BY created_at DESC",
+                (lakehouse_id, status.value),
+            )
+        else:
+            cursor = await self.db.execute(
+                "SELECT * FROM kg_domain_suggestions WHERE lakehouse_id = ? ORDER BY created_at DESC",
+                (lakehouse_id,),
+            )
+        rows = await cursor.fetchall()
+        return [DomainSuggestion(**dict(r)) for r in rows]
+
+    async def save_relationship_suggestion(self, sug: RelationshipSuggestion) -> None:
+        query = """
+        INSERT OR REPLACE INTO kg_relationship_suggestions (
+            suggestion_id, lakehouse_id, source_table_id, source_column_id,
+            target_table_id, target_column_id, relationship_type, inference_method,
+            confidence, rationale, evidence_json, evidence_fingerprint,
+            insight_id, status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        await self.db.execute(
+            query,
+            (
+                sug.suggestion_id,
+                sug.lakehouse_id,
+                sug.source_table_id,
+                sug.source_column_id,
+                sug.target_table_id,
+                sug.target_column_id,
+                sug.relationship_type,
+                sug.inference_method.value,
+                sug.confidence,
+                sug.rationale,
+                sug.evidence_json,
+                sug.evidence_fingerprint,
+                sug.insight_id,
+                sug.status.value,
+                sug.created_at,
+            ),
+        )
+        await self.db.commit()
+
+    async def get_relationship_suggestion(self, suggestion_id: str) -> Optional[RelationshipSuggestion]:
+        cursor = await self.db.execute("SELECT * FROM kg_relationship_suggestions WHERE suggestion_id = ?", (suggestion_id,))
+        row = await cursor.fetchone()
+        return RelationshipSuggestion(**dict(row)) if row else None
+
+    async def get_relationship_suggestions(self, lakehouse_id: str, status: Optional[SuggestionStatus] = None) -> list[RelationshipSuggestion]:
+        if status:
+            cursor = await self.db.execute(
+                "SELECT * FROM kg_relationship_suggestions WHERE lakehouse_id = ? AND status = ? ORDER BY created_at DESC",
+                (lakehouse_id, status.value),
+            )
+        else:
+            cursor = await self.db.execute(
+                "SELECT * FROM kg_relationship_suggestions WHERE lakehouse_id = ? ORDER BY created_at DESC",
+                (lakehouse_id,),
+            )
+        rows = await cursor.fetchall()
+        return [RelationshipSuggestion(**dict(r)) for r in rows]
+
+    # --- Governance & Review Operations ---
+
+    async def save_review_item(self, item: ReviewQueueItem) -> None:
+        query = """
+        INSERT OR REPLACE INTO kg_review_queue (
+            review_id, lakehouse_id, review_type, proposal_id, entity_id,
+            status, priority, created_at, resolved_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        await self.db.execute(
+            query,
+            (
+                item.review_id,
+                item.lakehouse_id,
+                item.review_type.value,
+                item.proposal_id,
+                item.entity_id,
+                item.status.value,
+                item.priority.value,
+                item.created_at,
+                item.resolved_at,
+            ),
+        )
+        await self.db.commit()
+
+    async def get_review_item(self, review_id: str) -> Optional[ReviewQueueItem]:
+        cursor = await self.db.execute("SELECT * FROM kg_review_queue WHERE review_id = ?", (review_id,))
+        row = await cursor.fetchone()
+        return ReviewQueueItem(**dict(row)) if row else None
+
+    async def get_review_queue(self, lakehouse_id: str, status: Optional[ReviewStatus] = None) -> list[ReviewQueueItem]:
+        if status:
+            cursor = await self.db.execute(
+                "SELECT * FROM kg_review_queue WHERE lakehouse_id = ? AND status = ? ORDER BY created_at ASC",
+                (lakehouse_id, status.value),
+            )
+        else:
+            cursor = await self.db.execute(
+                "SELECT * FROM kg_review_queue WHERE lakehouse_id = ? ORDER BY created_at ASC",
+                (lakehouse_id,),
+            )
+        rows = await cursor.fetchall()
+        return [ReviewQueueItem(**dict(r)) for r in rows]
+
+    async def save_user_decision(self, dec: UserDecision) -> None:
+        query = """
+        INSERT OR REPLACE INTO kg_user_decisions (
+            decision_id, lakehouse_id, review_id, actor_id, action,
+            previous_value_json, new_value_json, comments,
+            evidence_fingerprint, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        await self.db.execute(
+            query,
+            (
+                dec.decision_id,
+                dec.lakehouse_id,
+                dec.review_id,
+                dec.actor_id,
+                dec.action.value,
+                dec.previous_value_json,
+                dec.new_value_json,
+                dec.comments,
+                dec.evidence_fingerprint,
+                dec.created_at,
+            ),
+        )
+        await self.db.commit()
+
+    async def get_user_decisions(self, lakehouse_id: str) -> list[UserDecision]:
+        cursor = await self.db.execute(
+            "SELECT * FROM kg_user_decisions WHERE lakehouse_id = ? ORDER BY created_at DESC",
+            (lakehouse_id,),
+        )
+        rows = await cursor.fetchall()
+        return [UserDecision(**dict(r)) for r in rows]
+
+    async def save_rejection_record(self, rej: RejectionRecord) -> None:
+        query = """
+        INSERT OR REPLACE INTO kg_rejection_records (
+            rejection_id, lakehouse_id, entity_id, proposal_id,
+            rejected_fingerprint, reason, decision_id, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        await self.db.execute(
+            query,
+            (
+                rej.rejection_id,
+                rej.lakehouse_id,
+                rej.entity_id,
+                rej.proposal_id,
+                rej.rejected_fingerprint,
+                rej.reason,
+                rej.decision_id,
+                rej.created_at,
+            ),
+        )
+        await self.db.commit()
+
+    async def is_fingerprint_rejected(self, entity_id: str, fingerprint: str) -> bool:
+        cursor = await self.db.execute(
+            "SELECT COUNT(*) FROM kg_rejection_records WHERE entity_id = ? AND rejected_fingerprint = ?",
+            (entity_id, fingerprint),
+        )
+        count = (await cursor.fetchone())[0]
+        return count > 0
+
+    async def save_change_flag(self, flag: ChangeFlag) -> None:
+        query = """
+        INSERT OR REPLACE INTO kg_change_flags (
+            flag_id, lakehouse_id, entity_id, flag_type,
+            previous_value_json, proposed_value_json,
+            previous_fingerprint, current_fingerprint,
+            status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        await self.db.execute(
+            query,
+            (
+                flag.flag_id,
+                flag.lakehouse_id,
+                flag.entity_id,
+                flag.flag_type.value,
+                flag.previous_value_json,
+                flag.proposed_value_json,
+                flag.previous_fingerprint,
+                flag.current_fingerprint,
+                flag.status.value,
+                flag.created_at,
+            ),
+        )
+        await self.db.commit()
+
+    async def get_change_flags(self, lakehouse_id: str, status: Optional[FlagStatus] = None) -> list[ChangeFlag]:
+        if status:
+            cursor = await self.db.execute(
+                "SELECT * FROM kg_change_flags WHERE lakehouse_id = ? AND status = ? ORDER BY created_at DESC",
+                (lakehouse_id, status.value),
+            )
+        else:
+            cursor = await self.db.execute(
+                "SELECT * FROM kg_change_flags WHERE lakehouse_id = ? ORDER BY created_at DESC",
+                (lakehouse_id,),
+            )
+        rows = await cursor.fetchall()
+        return [ChangeFlag(**dict(r)) for r in rows]
+
+    # --- Validated Knowledge Operations ---
+
+    async def save_business_domain(self, domain: BusinessDomain) -> None:
+        query = """
+        INSERT OR REPLACE INTO kg_business_domains (
+            domain_id, lakehouse_id, domain_name, description, status,
+            created_by, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        await self.db.execute(
+            query,
+            (
+                domain.domain_id,
+                domain.lakehouse_id,
+                domain.domain_name,
+                domain.description,
+                domain.status.value,
+                domain.created_by,
+                domain.created_at,
+                domain.updated_at,
+            ),
+        )
+        await self.db.commit()
+
+    async def get_business_domain(self, domain_id: str) -> Optional[BusinessDomain]:
+        cursor = await self.db.execute("SELECT * FROM kg_business_domains WHERE domain_id = ?", (domain_id,))
+        row = await cursor.fetchone()
+        return BusinessDomain(**dict(row)) if row else None
+
+    async def get_business_domains(self, lakehouse_id: str) -> list[BusinessDomain]:
+        cursor = await self.db.execute(
+            "SELECT * FROM kg_business_domains WHERE lakehouse_id = ? AND status = 'ACTIVE' ORDER BY domain_name ASC",
+            (lakehouse_id,),
+        )
+        rows = await cursor.fetchall()
+        return [BusinessDomain(**dict(r)) for r in rows]
+
+    async def save_domain_membership(self, mem: DomainMembership) -> None:
+        query = """
+        INSERT OR REPLACE INTO kg_domain_memberships (
+            membership_id, lakehouse_id, table_id, domain_id,
+            approval_decision_id, valid_from_version, valid_to_version, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        await self.db.execute(
+            query,
+            (
+                mem.membership_id,
+                mem.lakehouse_id,
+                mem.table_id,
+                mem.domain_id,
+                mem.approval_decision_id,
+                mem.valid_from_version,
+                mem.valid_to_version,
+                mem.status.value,
+            ),
+        )
+        await self.db.commit()
+
+    async def get_domain_membership_for_table(self, table_id: str) -> Optional[DomainMembership]:
+        cursor = await self.db.execute(
+            "SELECT * FROM kg_domain_memberships WHERE table_id = ? AND status = 'ACTIVE'",
+            (table_id,),
+        )
+        row = await cursor.fetchone()
+        return DomainMembership(**dict(row)) if row else None
+
+    async def save_validated_relationship(self, rel: ValidatedRelationship) -> None:
+        query = """
+        INSERT OR REPLACE INTO kg_validated_relationships (
+            relationship_id, lakehouse_id, source_node_id, target_node_id,
+            relationship_type, originating_suggestion_id, approval_decision_id,
+            status, valid_from_version, valid_to_version
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        await self.db.execute(
+            query,
+            (
+                rel.relationship_id,
+                rel.lakehouse_id,
+                rel.source_node_id,
+                rel.target_node_id,
+                rel.relationship_type,
+                rel.originating_suggestion_id,
+                rel.approval_decision_id,
+                rel.status.value,
+                rel.valid_from_version,
+                rel.valid_to_version,
+            ),
+        )
+        await self.db.commit()
+
+    async def get_validated_relationships(self, lakehouse_id: str) -> list[ValidatedRelationship]:
+        cursor = await self.db.execute(
+            "SELECT * FROM kg_validated_relationships WHERE lakehouse_id = ? AND status = 'ACTIVE'",
+            (lakehouse_id,),
+        )
+        rows = await cursor.fetchall()
+        return [ValidatedRelationship(**dict(r)) for r in rows]
 
     # --- Counts ---
 

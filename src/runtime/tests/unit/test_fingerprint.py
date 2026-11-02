@@ -55,3 +55,4 @@ def test_table_fingerprint_changes_on_column_change():
     t1 = compute_table_fingerprint("lh1", "dbo", "customers", "DELTA", col_fps_1)
     t2 = compute_table_fingerprint("lh1", "dbo", "customers", "DELTA", col_fps_2)
     assert t1 != t2
+

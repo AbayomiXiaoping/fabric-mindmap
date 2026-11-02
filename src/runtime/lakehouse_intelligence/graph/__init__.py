@@ -28,3 +28,4 @@ __all__ = [
     "canonicalize",
     "FINGERPRINT_ALGORITHM_VERSION",
 ]
+

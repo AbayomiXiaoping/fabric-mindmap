@@ -92,3 +92,4 @@ class MockFabricConnector(BaseFabricConnector):
             if t.name.lower() == table_name.lower() and t.schema_name.lower() == schema_name.lower():
                 return t.columns
         return []
+

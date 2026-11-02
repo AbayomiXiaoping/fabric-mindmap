@@ -113,3 +113,4 @@ class SnapshotManifest(BaseModel):
     column_count: int
     checksum: str
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+

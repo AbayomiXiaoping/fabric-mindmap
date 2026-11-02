@@ -18,3 +18,4 @@ export function getSettings(): ExtensionSettings {
     fabricPersistenceEnabled: config.get<boolean>('persistence.fabricEnabled', false),
   };
 }
+

@@ -253,3 +253,4 @@ class GraphEngine:
             scan_run.completed_at = datetime.now(timezone.utc).isoformat()
             await self.store.save_scan_run(scan_run)
             raise
+

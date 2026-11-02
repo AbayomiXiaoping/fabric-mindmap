@@ -62,3 +62,4 @@ def test_table_metadata():
     )
     assert meta.table_format == "DELTA"
     assert meta.extraction_status == ExtractionStatus.SUCCESS
+

@@ -86,3 +86,4 @@ async def get_table_details(
         "columns": [c.model_dump() for c in cols],
         "relationships": [e.model_dump() for e in edges],
     }
+

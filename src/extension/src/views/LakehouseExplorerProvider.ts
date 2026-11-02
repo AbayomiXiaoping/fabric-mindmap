@@ -157,3 +157,4 @@ export class LakehouseExplorerProvider implements vscode.TreeDataProvider<Explor
     }
   }
 }
+

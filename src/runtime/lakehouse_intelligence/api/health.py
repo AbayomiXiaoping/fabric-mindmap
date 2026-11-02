@@ -31,3 +31,4 @@ async def ready(store: SQLiteStore = Depends(get_store)) -> dict[str, str]:
         return {"status": "ready", "database": "connected"}
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Database unreachable: {e}")
+

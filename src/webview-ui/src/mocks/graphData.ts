@@ -73,3 +73,4 @@ export const MOCK_NODES: GraphNode[] = [
     last_seen_version: 1,
   },
 ];
+

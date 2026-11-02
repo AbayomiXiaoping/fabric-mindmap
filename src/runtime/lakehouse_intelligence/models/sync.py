@@ -52,3 +52,4 @@ class PendingSync(BaseModel):
     status: PendingSyncStatus = PendingSyncStatus.PENDING
     attempts: int = 0
     last_error: Optional[str] = None
+

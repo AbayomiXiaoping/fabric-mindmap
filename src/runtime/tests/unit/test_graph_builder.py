@@ -46,3 +46,4 @@ async def test_incremental_refresh_idempotent(graph_engine, sample_lakehouse_id,
     active = await graph_engine.store.get_active_snapshot(sample_lakehouse_id)
     assert active is not None
     assert active.graph_version == 2
+

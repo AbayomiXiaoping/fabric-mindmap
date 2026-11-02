@@ -91,3 +91,4 @@ async def test_save_table_and_column_metadata(temp_store):
     assert len(loaded_cols) == 1
     assert loaded_cols[0].column_name == "order_id"
     assert loaded_cols[0].is_primary_key is True
+

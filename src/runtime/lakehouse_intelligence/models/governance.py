@@ -175,3 +175,4 @@ class RejectionRecord(BaseModel):
     reason: Optional[str] = None
     decision_id: str
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+

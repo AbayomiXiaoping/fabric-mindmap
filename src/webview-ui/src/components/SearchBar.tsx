@@ -35,3 +35,4 @@ export const SearchBar: React.FC<Props> = ({ placeholder = 'Search tables or col
     </div>
   );
 };
+

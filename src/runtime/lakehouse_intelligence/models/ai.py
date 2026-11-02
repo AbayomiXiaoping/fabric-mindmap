@@ -106,3 +106,4 @@ class RelationshipSuggestion(BaseModel):
     insight_id: Optional[str] = None
     status: SuggestionStatus = SuggestionStatus.PENDING
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+

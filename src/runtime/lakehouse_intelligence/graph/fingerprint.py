@@ -148,3 +148,4 @@ def compute_edge_fingerprint(
         "algorithm_version": FINGERPRINT_ALGORITHM_VERSION,
     }
     return compute_fingerprint(payload)
+

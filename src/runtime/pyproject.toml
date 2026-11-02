@@ -33,3 +33,4 @@ lakehouse-intelligence = "lakehouse_intelligence.main:cli"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["lakehouse_intelligence*"]
+

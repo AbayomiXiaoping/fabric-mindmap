@@ -145,3 +145,4 @@ class MetadataNormalizer:
         )
 
         return tbl_node, tbl_meta, col_results
+

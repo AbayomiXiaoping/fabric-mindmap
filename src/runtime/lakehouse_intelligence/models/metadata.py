@@ -47,3 +47,4 @@ class ColumnMetadata(BaseModel):
     properties_json: str = "{}"
     fingerprint: str
     extraction_status: ExtractionStatus = ExtractionStatus.SUCCESS
+

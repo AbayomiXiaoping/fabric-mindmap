@@ -47,3 +47,4 @@ export class Logger {
     this.outputChannel.show(true);
   }
 }
+

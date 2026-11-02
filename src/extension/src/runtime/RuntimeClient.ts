@@ -52,6 +52,35 @@ export interface ScanStatus {
   edge_count: number;
 }
 
+export interface ReviewItem {
+  review_id: string;
+  review_type: string;
+  entity_id: string;
+  entity_name: string;
+  status: string;
+  priority: string;
+  created_at: string;
+  proposal: {
+    proposed_domain?: string;
+    rationale?: string;
+    evidence?: Record<string, unknown>;
+    confidence?: number;
+    relationship_type?: string;
+  };
+}
+
+export interface UserDecision {
+  decision_id: string;
+  review_id: string;
+  actor_id: string;
+  action: string;
+  previous_value_json: string;
+  new_value_json: string;
+  comments?: string;
+  evidence_fingerprint: string;
+  created_at: string;
+}
+
 export class RuntimeClient {
   private baseUrl: string;
   private logger: Logger;
@@ -122,5 +151,72 @@ export class RuntimeClient {
     return this.request<NodeInfo[]>(
       `/api/v1/lakehouses/${lakehouseId}/graph/nodes/${encodeURIComponent(nodeId)}/children`,
     );
+  }
+
+  // --- AI & Governance ---
+
+  async triggerEnrichment(lakehouseId: string): Promise<{ status: string; stats: Record<string, number> }> {
+    return this.request<{ status: string; stats: Record<string, number> }>(
+      `/api/v1/lakehouses/${lakehouseId}/enrich`,
+      { method: 'POST' },
+    );
+  }
+
+  async getGovernanceQueue(lakehouseId: string): Promise<ReviewItem[]> {
+    return this.request<ReviewItem[]>(`/api/v1/lakehouses/${lakehouseId}/governance/queue`);
+  }
+
+  async approveReview(
+    lakehouseId: string,
+    reviewId: string,
+    actorId: string = 'developer',
+    comments?: string,
+  ): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>(
+      `/api/v1/lakehouses/${lakehouseId}/governance/reviews/${reviewId}/approve`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ actor_id: actorId, comments }),
+      },
+    );
+  }
+
+  async rejectReview(
+    lakehouseId: string,
+    reviewId: string,
+    actorId: string = 'developer',
+    reason?: string,
+  ): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>(
+      `/api/v1/lakehouses/${lakehouseId}/governance/reviews/${reviewId}/reject`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ actor_id: actorId, reason }),
+      },
+    );
+  }
+
+  async modifyReview(
+    lakehouseId: string,
+    reviewId: string,
+    modifiedDomainName: string,
+    actorId: string = 'developer',
+    comments?: string,
+  ): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>(
+      `/api/v1/lakehouses/${lakehouseId}/governance/reviews/${reviewId}/modify`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          modified_domain_name: modifiedDomainName,
+          actor_id: actorId,
+          comments,
+        }),
+      },
+    );
+  }
+
+  async getGovernanceHistory(lakehouseId: string): Promise<UserDecision[]> {
+    return this.request<UserDecision[]>(`/api/v1/lakehouses/${lakehouseId}/governance/history`);
   }
 }

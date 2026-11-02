@@ -31,3 +31,4 @@ class BaseFabricConnector(ABC):
     ) -> Sequence[ExtractedColumn]:
         """Retrieves columns for a specified table."""
         pass
+

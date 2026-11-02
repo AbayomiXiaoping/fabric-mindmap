@@ -12,8 +12,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from lakehouse_intelligence import __version__
+from lakehouse_intelligence.ai.enrichment import AIEnrichmentEngine
 from lakehouse_intelligence.api import api_router
 from lakehouse_intelligence.config import settings
+from lakehouse_intelligence.governance.engine import GovernanceEngine
 from lakehouse_intelligence.graph.engine import GraphEngine
 from lakehouse_intelligence.logging.logger import get_logger
 from lakehouse_intelligence.storage.sqlite_store import SQLiteStore
@@ -24,6 +26,8 @@ logger = get_logger("runtime_main")
 class AppState:
     store: Optional[SQLiteStore] = None
     engine: Optional[GraphEngine] = None
+    gov_engine: Optional[GovernanceEngine] = None
+    ai_engine: Optional[AIEnrichmentEngine] = None
 
 
 app_state = AppState()
@@ -37,7 +41,9 @@ async def lifespan(app: FastAPI):
     await store.initialize()
     app_state.store = store
     app_state.engine = GraphEngine(store)
-    logger.info("Storage layer and knowledge graph engine initialized")
+    app_state.gov_engine = GovernanceEngine(store)
+    app_state.ai_engine = AIEnrichmentEngine(store)
+    logger.info("Storage layer, graph engine, governance, and AI engines initialized")
     yield
     logger.info("Shutting down runtime...")
     if app_state.store:
@@ -47,7 +53,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Fabric Lakehouse Intelligence Runtime",
-    description="Local backend providing metadata normalization, knowledge graph persistence, and MCP tools.",
+    description="Local backend providing metadata normalization, knowledge graph persistence, governance, and AI enrichment.",
     version=__version__,
     lifespan=lifespan,
 )

@@ -73,7 +73,7 @@ export class WebviewPanelManager {
           type: 'init',
           baseUrl: this.runtimeManager.getBaseUrl(),
           lakehouseId: 'lh-banking-prod-01',
-          view: 'mindmap',
+          view: 'overview',
         });
         break;
 
@@ -110,6 +110,99 @@ export class WebviewPanelManager {
           });
         }
         break;
+
+      case 'enrichMetadata':
+        try {
+          const res = await client.triggerEnrichment(msg.lakehouseId);
+          this.postMessage(panel, {
+            type: 'notification',
+            level: 'info',
+            message: `AI Enrichment complete: ${res.stats.domains_suggested} domains suggested, ${res.stats.reviews_queued} queued for review`,
+          });
+        } catch (err) {
+          this.postMessage(panel, {
+            type: 'notification',
+            level: 'error',
+            message: `Enrichment failed: ${err}`,
+          });
+        }
+        break;
+
+      case 'fetchGovernanceQueue':
+        try {
+          const items = await client.getGovernanceQueue(msg.lakehouseId);
+          this.postMessage(panel, {
+            type: 'governanceQueueLoaded',
+            items,
+          });
+        } catch (err) {
+          this.logger.error('Failed to fetch governance queue', err);
+        }
+        break;
+
+      case 'approveReview':
+        try {
+          await client.approveReview(msg.lakehouseId, msg.reviewId, 'developer', msg.comments);
+          this.postMessage(panel, {
+            type: 'notification',
+            level: 'info',
+            message: 'Domain proposal approved and assigned.',
+          });
+          // Refresh queue
+          const items = await client.getGovernanceQueue(msg.lakehouseId);
+          this.postMessage(panel, { type: 'governanceQueueLoaded', items });
+        } catch (err) {
+          this.postMessage(panel, {
+            type: 'notification',
+            level: 'error',
+            message: `Approval failed: ${err}`,
+          });
+        }
+        break;
+
+      case 'rejectReview':
+        try {
+          await client.rejectReview(msg.lakehouseId, msg.reviewId, 'developer', msg.reason);
+          this.postMessage(panel, {
+            type: 'notification',
+            level: 'info',
+            message: 'Domain proposal rejected (will not be re-suggested).',
+          });
+          const items = await client.getGovernanceQueue(msg.lakehouseId);
+          this.postMessage(panel, { type: 'governanceQueueLoaded', items });
+        } catch (err) {
+          this.postMessage(panel, {
+            type: 'notification',
+            level: 'error',
+            message: `Rejection failed: ${err}`,
+          });
+        }
+        break;
+
+      case 'modifyReview':
+        try {
+          await client.modifyReview(
+            msg.lakehouseId,
+            msg.reviewId,
+            msg.modifiedDomain,
+            'developer',
+            msg.comments,
+          );
+          this.postMessage(panel, {
+            type: 'notification',
+            level: 'info',
+            message: `Modified domain '${msg.modifiedDomain}' approved.`,
+          });
+          const items = await client.getGovernanceQueue(msg.lakehouseId);
+          this.postMessage(panel, { type: 'governanceQueueLoaded', items });
+        } catch (err) {
+          this.postMessage(panel, {
+            type: 'notification',
+            level: 'error',
+            message: `Modify failed: ${err}`,
+          });
+        }
+        break;
     }
   }
 
@@ -136,36 +229,6 @@ export class WebviewPanelManager {
       return html;
     }
 
-    // Fallback embedded UI while webview bundle builds
-    const csp = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline' ${webview.cspSource};">`;
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  ${csp}
-  <title>Lakehouse Intelligence</title>
-  <style>
-    body { font-family: var(--vscode-font-family, sans-serif); padding: 24px; color: var(--vscode-foreground); background: var(--vscode-editor-background); }
-    .card { background: var(--vscode-editorWidget-background); border: 1px solid var(--vscode-widget-border, #333); border-radius: 8px; padding: 20px; max-width: 600px; margin: 20px auto; }
-    h2 { color: var(--vscode-textLink-foreground); margin-top: 0; }
-    button { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 8px; }
-    button:hover { background: var(--vscode-button-hoverBackground); }
-    .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; background: #28a745; color: white; font-size: 12px; font-weight: bold; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h2>Fabric Lakehouse Intelligence Explorer</h2>
-    <p>Target: <strong>Fabric_Retail_Banking_Lakehouse</strong> <span class="badge">LOCAL CACHE</span></p>
-    <p>Connected to Python Runtime: <code>${this.runtimeManager.getBaseUrl()}</code></p>
-    <hr style="border: 0; border-top: 1px solid var(--vscode-widget-border, #444); margin: 20px 0;">
-    <button onclick="vscode.postMessage({type: 'buildGraph', lakehouseId: 'lh-banking-prod-01'})">Build Knowledge Graph</button>
-    <button onclick="vscode.postMessage({type: 'refreshGraph', lakehouseId: 'lh-banking-prod-01'})">Refresh Metadata</button>
-  </div>
-  <script>
-    const vscode = acquireVsCodeApi();
-  </script>
-</body>
-</html>`;
+    return `<!DOCTYPE html><html><body>Webview dist not found. Run npm run build in webview-ui.</body></html>`;
   }
 }
